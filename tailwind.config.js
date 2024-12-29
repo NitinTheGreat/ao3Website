@@ -1,6 +1,6 @@
-module.exports = {
+export default {
   content: [
-    "./src/**/*.{js,jsx,ts,tsx}",  // Adjust this path as per your project structure
+    "./src/**/*.{js,jsx,ts,tsx}", // Adjust this path as per your project structure
   ],
   theme: {
     extend: {},
