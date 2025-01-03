@@ -8,7 +8,7 @@ export default function Login() {
     = useState('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const togglePasswordVisibility = () => {
@@ -84,7 +84,7 @@ export default function Login() {
               console.log('Tokens sent to extension:', response);
             }
         });
-        
+        setIsSubmitting(true);
         
         setMessage('Login successful');
         setMessageType('success');
@@ -101,7 +101,12 @@ export default function Login() {
       setMessage('An error occurred. Please try again.');
       setMessageType('error');
     }
-  };
+    finally {
+      setIsSubmitting(false);
+    }
+  }
+  
+
   
 
 
@@ -224,6 +229,7 @@ return (
             </div>
             <button
               type="submit"
+              disabled={isSubmitting}
               onClick={handleSubmit}
               style={{
                 width: '100%',
@@ -238,7 +244,7 @@ return (
 
               }}
             >
-              Log In
+             {isSubmitting ? 'Logging in...' : 'Log In'}
             </button>
           </form>
 

@@ -1,65 +1,146 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import Sidebar from '../../components/Sidebar/Sidebar';
-import { useMediaQuery } from 'react-responsive';
-
-const BulletSVG = () => (
-  <svg width="7" height="9" viewBox="0 0 7 9" fill="none" xmlns="http://www.w3.org/2000/svg" className="mr-2 flex-shrink-0">
-    <path d="M6 4.44124C4.28813 2.56223 3.14849 1.90601 1 1C2.10881 2.36504 2.78571 3.18542 2.78571 4.44124C2.78571 5.59851 2.29529 6.41651 1 7.88248C3.23029 6.82396 4.4375 6.00544 6 4.44124Z" fill="#535353" stroke="#535353" strokeLinejoin="round"/>
-  </svg>
-);
+import { Search } from 'lucide-react';
+import axios from 'axios';
+// import { useRouter } from 'next/navigation';
 
 interface Recommendations {
   [key: string]: string[];
 }
 
+const SkeletonTag = () => (
+  <motion.div
+    className="w-20 h-8 bg-gray-200 rounded-full animate-pulse"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+  />
+);
+
+const SkeletonRow = () => (
+  <motion.tr
+    className="animate-pulse"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+  >
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div className="flex gap-2">
+        <div className="h-6 bg-gray-200 rounded w-16"></div>
+        <div className="h-6 bg-gray-200 rounded w-16"></div>
+      </div>
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div className="h-4 bg-gray-200 rounded w-24"></div>
+    </td>
+  </motion.tr>
+);
+
 export default function EnhancedRecommendations() {
-  const [showAllTags, setShowAllTags] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendations>({});
   const [filteredRecommendations, setFilteredRecommendations] = useState<Recommendations>({});
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const isMobile = useMediaQuery({ maxWidth: 768 });
-  const tagsPerPage = isMobile ? 12 : 23;
-  const tagsPerPageSmall = isMobile ? 8 : 16;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTag, setSelectedTag] = useState("");
+  const [selectedFandom, setSelectedFandom] = useState("");
+  // const router = useRouter();
 
   useEffect(() => {
-    setIsLoading(true);
-    axios.get('https://ao3-aiml.onrender.com/recommendations/Dipit12')
-      .then(response => {
+    async function fetchRecommendations() {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const accessToken = localStorage.getItem('accessToken');
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        if (!accessToken) {
+          throw new Error('No access token found');
+        }
+
+        // const response = await axios.get('https://ao3-aiml.onrender.com/recom', {
+        //   headers: {
+        //     Authorization: `Bearer ${accessToken}`,
+        //     // 'X-Refresh-Token': refreshToken
+        //   }
+        // });
+
+        const response = await axios.get('https://ao3-aiml.onrender.com/recommendations/Dipit12');
+        if (response.status !== 200) {
+          if (response.status === 401) {
+            // router.push('/login');
+            return;
+          }
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
         const data = response.data;
         const tags = Object.keys(data);
+
         setAllTags(tags);
         setRecommendations(data);
         setFilteredRecommendations(data);
+      } catch (error) {
+        console.error('Error fetching recommendations:', error);
+        setError(error instanceof Error ? error.message : 'An unknown error occurred');
+      } finally {
         setIsLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching data:', error);
-        setIsLoading(false);
-      });
+      }
+    }
+
+    fetchRecommendations();
   }, []);
 
-  const visibleTags = showAllTags ? allTags : allTags.slice(0, tagsPerPageSmall);
+  useEffect(() => {
+    if (!isLoading && !error) {
+      let filtered = { ...recommendations };
+
+      if (selectedTag) {
+        filtered = Object.fromEntries(
+          Object.entries(filtered).filter(([tag]) => tag === selectedTag)
+        );
+      }
+
+      if (selectedFandom) {
+        filtered = Object.fromEntries(
+          Object.entries(filtered).map(([tag, links]) => [
+            tag,
+            links.filter(link => link.toLowerCase().includes(selectedFandom.toLowerCase()))
+          ])
+        );
+      }
+
+      if (searchTerm) {
+        filtered = Object.fromEntries(
+          Object.entries(filtered).map(([tag, links]) => [
+            tag,
+            links.filter(link => 
+              link.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              tag.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+          ])
+        );
+      }
+
+      setFilteredRecommendations(filtered);
+    }
+  }, [selectedTag, selectedFandom, searchTerm, recommendations, isLoading, error]);
 
   const handleTagClick = (tag: string) => {
-    if (selectedTag === tag) {
-      setFilteredRecommendations(recommendations);
-      setSelectedTag(null);
-    } else {
-      setFilteredRecommendations({ [tag]: recommendations[tag] });
-      setSelectedTag(tag);
-    }
+    setSelectedTag(tag === selectedTag ? "" : tag);
   };
 
-  const handleShowMore = () => setShowAllTags(true);
-  const handleShowLess = () => setShowAllTags(false);
-
-  const showButtons = allTags.length > tagsPerPageSmall;
+  const handleFandomClick = (fandom: string) => {
+    setSelectedFandom(fandom === selectedFandom ? "" : fandom);
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -81,94 +162,113 @@ export default function EnhancedRecommendations() {
     }
   };
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+          <p className="text-gray-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col md:flex-row min-h-screen mb-18 bg-gray-100">
-      <Sidebar />
-      <div className="w-full md:ml-16 px-4 md:px-8 py-8 font-sans">
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={containerVariants}
-          className="container mx-auto"
-        >
-          <motion.section variants={itemVariants} className="mb-8">
-            <h2 className="text-2xl font-bold text-blue-900 mb-4 md:ml-7vw">Tags</h2>
-            <div className="bg-white p-4 rounded-lg shadow md:w-81vw md:ml-5vw">
-              <div className="flex flex-wrap gap-2">
-                <AnimatePresence>
-                  {visibleTags.map((tag, index) => (
-                    <motion.span
+    <div className="flex flex-col mb-24 min-h-screen bg-gray-100">
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+        className="w-full px-4 md:px-8 py-8 font-sans bg-gray-100"
+      >
+        <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-blue-900 mb-4 md:mb-0">Recommendations</h1>
+          <div className="w-full md:w-auto md:ml-4 relative">
+            <input
+              type="text"
+              placeholder="Search Tags or Titles"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full md:w-96 px-4 py-2 pl-10 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          </div>
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <h2 className="text-xl font-semibold text-blue-900 mb-3">Tags</h2>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="flex flex-wrap gap-2">
+              <AnimatePresence>
+                {isLoading ? (
+                  [...Array(6)].map((_, index) => <SkeletonTag key={index} />)
+                ) : (
+                  allTags.map((tag) => (
+                    <motion.button
                       key={tag}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
+                      onClick={() => handleTagClick(tag)}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className={`px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm cursor-pointer ${selectedTag === tag ? 'bg-blue-100' : ''}`}
-                      onClick={() => handleTagClick(tag)}
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                        selectedTag === tag
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                     >
                       {tag}
-                    </motion.span>
-                  ))}
-                </AnimatePresence>
-                {showButtons && (
-                  <motion.button
-                    variants={itemVariants}
-                    onClick={showAllTags ? handleShowLess : handleShowMore}
-                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm hover:bg-gray-300"
-                  >
-                    {showAllTags ? 'Show less' : 'See more...'}
-                  </motion.button>
+                    </motion.button>
+                  ))
                 )}
-              </div>
+              </AnimatePresence>
             </div>
-          </motion.section>
-
-          <motion.section variants={itemVariants}>
-            <h2 className="text-2xl font-bold text-blue-900 mb-4 md:ml-7vw">Recommendations</h2>
-            {isLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"
-                />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-                {Object.entries(filteredRecommendations).map(([category, links]) => (
-                  <motion.div
-                    key={category}
-                    variants={itemVariants}
-                    className="bg-white p-4 rounded-lg shadow h-64 md:h-auto overflow-y-auto"
-                  >
-                    <h3 className="font-bold text-blue-900 mb-2">{category}</h3>
-                    <ul className="list-none space-y-1">
-                      {links.map((link, index) => (
-                        <motion.li
-                          key={index}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="flex items-start"
-                        >
-                          <BulletSVG />
-                          <Link
-                            to={link}
-                            className="text-blue-600 hover:underline text-sm break-all"
-                          >
-                            {link}
-                          </Link>
-                        </motion.li>
-                      ))}
-                    </ul>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </motion.section>
+          </div>
         </motion.div>
-      </div>
+
+        <motion.div variants={itemVariants} className="mt-6">
+          <h2 className="text-xl font-semibold text-blue-900 mb-3">Recommendations</h2>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">Title</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">Tag</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">Link</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <AnimatePresence>
+                    {isLoading ? (
+                      [...Array(5)].map((_, index) => <SkeletonRow key={index} />)
+                    ) : (
+                      Object.entries(filteredRecommendations).flatMap(([tag, links]) =>
+                        links.map((link, index) => (
+                          <motion.tr 
+                            key={`${tag}-${index}`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {link.split('/').pop()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tag}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:underline">
+                              <a href={link} target="_blank" rel="noopener noreferrer">{link}</a>
+                            </td>
+                          </motion.tr>
+                        ))
+                      )
+                    )}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
