@@ -8,7 +8,7 @@ export default function Login() {
     = useState('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
 
   const togglePasswordVisibility = () => {
@@ -73,22 +73,26 @@ export default function Login() {
         // Store tokens in localStorage
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
-        
+        console.log('setmsg');
         // Send both tokens to the Chrome extension
-        chrome.runtime.sendMessage("nnmmeljlhmhpnfphcpifdahblfmhlilm", 
-          { action: "storeTokens", accessToken: data.accessToken, refreshToken: data.refreshToken }, 
-          function(response) {
-            if (chrome.runtime.lastError) {
-              console.error('Error sending message:', chrome.runtime.lastError);
-            } else {
-              console.log('Tokens sent to extension:', response);
-            }
-        });
-        setIsSubmitting(true);
-        
+        try{
+          chrome.runtime.sendMessage("fhdpekegojojjldncglciojhhplgcdlh", 
+            { action: "storeTokens", accessToken: data.accessToken, refreshToken: data.refreshToken }, 
+            function(response) {
+              if (chrome.runtime.lastError) {
+                console.error('Error sending message:', chrome.runtime.lastError);
+              } else {
+                console.log('Tokens sent to extension:', response);
+              }
+          });
+        } catch (e) {
+          console.error('Error sending tokens to Chrome extension:', e);
+          setMessage('An error occurred while sending tokens to the Chrome extension.');
+          setMessageType('error');
+        }
         setMessage('Login successful');
         setMessageType('success');
-  
+        
         setTimeout(() => {
           window.location.href = '/dashboard';
         }, 1500);
@@ -101,12 +105,7 @@ export default function Login() {
       setMessage('An error occurred. Please try again.');
       setMessageType('error');
     }
-    finally {
-      setIsSubmitting(false);
-    }
-  }
-  
-
+  };
   
 
 
@@ -229,7 +228,6 @@ return (
             </div>
             <button
               type="submit"
-              disabled={isSubmitting}
               onClick={handleSubmit}
               style={{
                 width: '100%',
@@ -244,7 +242,7 @@ return (
 
               }}
             >
-             {isSubmitting ? 'Logging in...' : 'Log In'}
+              Log In
             </button>
           </form>
 
