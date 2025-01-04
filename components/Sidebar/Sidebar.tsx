@@ -102,7 +102,7 @@ const Sidebar: React.FC = () => {
       onMouseLeave={handleMouseLeave}
       variants={sidebarVariants}
       animate={isOpen ? 'open' : 'closed'}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
     >
       <div className="logo">
         <Logo />
@@ -134,7 +134,7 @@ const Sidebar: React.FC = () => {
           onClick={() => handleItemClick('Notes')}
           isOpen={isOpen}
         />
-        <SidebarItem
+        {/* <SidebarItem
           icon={<BookmarksIcon />}
           text="Bookmarks"
           isActive={activeItem === 'Bookmarks'}
@@ -147,7 +147,8 @@ const Sidebar: React.FC = () => {
           isActive={activeItem === 'History'}
           onClick={() => handleItemClick('History')}
           isOpen={isOpen}
-        />
+        /> */}
+        
         <SidebarItem
           icon={<SettingsIcon />}
           text="Settings"
@@ -162,7 +163,8 @@ const Sidebar: React.FC = () => {
           onClick={() => handleItemClick('Logout')}
           isOpen={isOpen}
         />
-      </div>
+        </div>
+      
       {showLogoutModal && (
         <LogoutModal onCancel={() => setShowLogoutModal(false)} onLogout={handleLogout} />
       )}

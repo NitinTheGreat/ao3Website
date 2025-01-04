@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search } from 'lucide-react';
 import axios from 'axios';
 // import { useRouter } from 'next/navigation';
-
+import Sidebar from '../../components/Sidebar/Sidebar';
 interface Recommendations {
   [key: string]: string[];
 }
@@ -174,12 +174,13 @@ export default function EnhancedRecommendations() {
   }
 
   return (
-    <div className="flex flex-col mb-24 min-h-screen bg-gray-100">
+    <div className="flex">
+      <Sidebar/>
       <motion.div 
         initial="hidden"
         animate="visible"
         variants={containerVariants}
-        className="w-full px-4 md:px-8 py-8 font-sans bg-gray-100"
+        className="m-8  lg:ml-24 w-full"
       >
         <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-blue-900 mb-4 md:mb-0">Recommendations</h1>
