@@ -8,6 +8,7 @@ export default function Login() {
     = useState('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [isLoading, setisLoading] = useState(false)
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -52,7 +53,7 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+    setisLoading(true); 
     try {
       const response = await fetch('https://ao3-chrome-extension-backend.onrender.com/auth/login', {
         method: 'POST',
@@ -104,6 +105,9 @@ export default function Login() {
       console.error('Error:', error);
       setMessage('An error occurred. Please try again.');
       setMessageType('error');
+    }
+    finally {
+      setIsLoading(false); 
     }
   };
   
@@ -229,6 +233,7 @@ return (
             <button
               type="submit"
               onClick={handleSubmit}
+              disabled={isLoading}
               style={{
                 width: '100%',
                 padding: '10px',
