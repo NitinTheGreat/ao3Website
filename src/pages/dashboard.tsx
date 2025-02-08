@@ -1,15 +1,74 @@
 "use client"
-
 import React from "react"
-import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search } from "lucide-react"
 import axios from "axios"
-import Sidebar from "../../components/Sidebar/Sidebar"
-
+import Sidebar  from "../../components/Sidebar/Sidebar"
 interface Recommendations {
   [key: string]: string[]
+}
+
+interface CacheItem<T> {
+  data: T
+  timestamp: number
+}
+
+const CACHE_DURATION = 50 * 1000
+
+function useCachedFetch<T>(url: string, accessToken: string | null) {
+  const [data, setData] = useState<T | null>(null)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!accessToken) {
+        setError("No access token found")
+        setIsLoading(false)
+        return
+      }
+
+      const cachedItem = localStorage.getItem(url)
+      if (cachedItem) {
+        const { data: cachedData, timestamp }: CacheItem<T> = JSON.parse(cachedItem)
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          setData(cachedData)
+          setIsLoading(false)
+          return
+        }
+      }
+
+      try {
+        const response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+
+        if (response.status !== 200) {
+          throw new Error(`HTTP error! Status: ${response.status}`)
+        }
+
+        const fetchedData = response.data
+        setData(fetchedData)
+        localStorage.setItem(
+          url,
+          JSON.stringify({
+            data: fetchedData,
+            timestamp: Date.now(),
+          }),
+        )
+      } catch (error) {
+        console.error("Error fetching data:", error)
+        setError(error instanceof Error ? error.message : "An unknown error occurred")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [url, accessToken])
+
+  return { data, isLoading, error }
 }
 
 const SkeletonTag = () => (
@@ -37,9 +96,11 @@ const SkeletonCard = () => (
   </motion.div>
 )
 
+// const Sidebar = () => {
+//   return <aside className="bg-gray-100 w-64 h-screen fixed">{/* Add your sidebar content here */}</aside>
+// }
+
 function RecommendationsPage() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [allTags, setAllTags] = useState<string[]>([])
   const [recommendations, setRecommendations] = useState<Recommendations>({})
   const [filteredRecommendations, setFilteredRecommendations] = useState<Recommendations>({})
@@ -47,40 +108,20 @@ function RecommendationsPage() {
   const [selectedTag, setSelectedTag] = useState("")
   const [selectedFandom, setSelectedFandom] = useState("")
 
+  const accessToken = localStorage.getItem("accessToken")
+  const { data, isLoading, error } = useCachedFetch<Recommendations>(
+    "https://ao3-aiml.onrender.com/recommendations/Dipit12",
+    accessToken,
+  )
+
   useEffect(() => {
-    async function fetchRecommendations() {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        const accessToken = localStorage.getItem("accessToken")
-
-        if (!accessToken) {
-          throw new Error("No access token found")
-        }
-
-        const response = await axios.get("https://ao3-aiml.onrender.com/recommendations/Dipit12")
-
-        if (response.status !== 200) {
-          throw new Error(`HTTP error! Status: ${response.status}`)
-        }
-
-        const data = response.data
-        const tags = Object.keys(data)
-
-        setAllTags(tags)
-        setRecommendations(data)
-        setFilteredRecommendations(data)
-      } catch (error) {
-        console.error("Error fetching recommendations:", error)
-        setError(error instanceof Error ? error.message : "An unknown error occurred")
-      } finally {
-        setIsLoading(false)
-      }
+    if (data) {
+      const tags = Object.keys(data)
+      setAllTags(tags)
+      setRecommendations(data)
+      setFilteredRecommendations(data)
     }
-
-    fetchRecommendations()
-  }, [])
+  }, [data])
 
   useEffect(() => {
     if (!isLoading && !error) {

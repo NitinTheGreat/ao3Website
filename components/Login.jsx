@@ -77,7 +77,8 @@ export default function Login() {
         console.log('setmsg');
         // Send both tokens to the Chrome extension
         try{
-          chrome.runtime.sendMessage("fhdpekegojojjldncglciojhhplgcdlh", 
+          // chrome.runtime.sendMessage("fhdpekegojojjldncglciojhhplgcdlh", 
+          chrome.runtime.sendMessage("fhdpekegojojjldncglciojhhplgcdlh",
             { action: "storeTokens", accessToken: data.accessToken, refreshToken: data.refreshToken }, 
             function(response) {
               if (chrome.runtime.lastError) {
